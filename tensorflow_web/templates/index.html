@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Tensorflow Demo</title>
+	<meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width"/>
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black" /> 
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-responsive.min.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/client.css') }}">
+
+
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/binaryajax.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/exif.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/megapix-image.js') }}"></script>
+</head>
+<body>
+	<div class="main">
+		<div class="input-wrapper">
+			<form id="fileInputForm" style="display:none">
+				<input type="file" accept="image/*;capture=camera"  id="fileInput"/>
+			</form>
+			<a class="btn btn-large btn-success input-image">传照片</a>
+		</div>
+		<div class="image-wrapper"></div>
+	</div>
+
+	<div id='result'>
+	</div>
+    <script>
+$(function(){
+	run();
+});
+
+function run() {
+	var imgWrapper = $(".main .image-wrapper");
+	var input = $("#fileInput");
+	var imgBtn = $('.input-image');
+	var infoBtn = $('.input-info');
+	var noInfoBtn = $('.no-info');
+	var doneInfoBtn = $('.done-info');
+	var result = $('#result').on('click', function(e){
+		var tar = e.target;
+		if( tar.id ==  "refreshBtn" ) {
+			location.reload();
+		}
+	});
+
+	var tpl = [
+		'<table class="table">',
+			'<thead>',
+				'<tr><td colspan="2" class="result-txt">这是<em>#{name}</em> [<a href="#{url}" target="_blank" style="font-size:14px;color:#fff;text-decoration:underline">释义</a>] 吗？</td></tr>',
+				'<tr><td>名称</td><td>概率</td></tr>',
+			'</thead>',
+			'<tbody>#{values}</tbody>',
+		'</table>',
+		'<p><button id="refreshBtn" class="btn btn-primary">再试一次</button></p>'
+	].join('')
+
+	var _format = function(str, data){
+		return str.replace(/#\{(.+?)\}/g, function(_, key){
+			return data[key]
+		});
+	}
+
+	var processImg = $({});
+
+	var cfg = {
+		imgW: 448
+	};
+
+	var stat = {
+		W: $(window).width(),
+		H: $(window).height()
+	};
+
+
+
+
+	input.on('change', function(e) {
+
+		var file = this.files[0];
+		var mpImg = new MegaPixImage(file);
+		var img = new Image();
+
+
+	    EXIF.getData(file, function() {
+	        var o = EXIF.getTag(file, "Orientation");
+	       	img.onload = function(){
+	       		img.style.width = cfg.imgW + 'px';
+
+
+	       		var data = getData(img);
+
+				$.ajax({
+	                url: '/predict',
+	                method: 'POST', 
+	                contentType: 'application/json',
+	                data: JSON.stringify({data: data}),
+	                success: function(res) {
+	                	test = res;
+                		var labels = JSON.parse(res.labels.replace(/\'/g, '"'));
+                		var values = JSON.parse(res.values);
+
+                		var listStr = labels.map(function(l, idx){
+                			return '<tr><td>' + l + '</td><td>' + values[idx] + '</td></tr>'
+                		}).join('')
+
+
+   						console.log(listStr)
+   						str = _format(tpl, {
+   							name: labels[0],
+   							url: 'http://dict.youdao.com/search?le=eng&q=' + encodeURIComponent(labels[0]),
+   							values: listStr
+   						})
+
+	                	result.html(str).show();
+	                }
+	            });
+
+
+	       		imgWrapper.css({
+	    			left: (stat.W - imgWrapper.width())/2 + 'px',
+	    			top: (stat.H - imgWrapper.height())/2 + 'px'
+	    		});
+
+	    		$('.main .input-wrapper').addClass('hide');
+	       	};
+			
+			mpImg.render(img, { 
+				maxWidth: 600, 
+				maxHeight: 600, 
+				orientation: o, 
+				quality: 0.5 
+			});
+			
+			
+
+			input.parent().fadeOut();
+	    	imgWrapper.append(img);
+
+	    });
+
+	});
+
+	imgBtn.on('click', function(){
+		input.trigger('click');
+	});
+
+
+	function getData(img) {
+		var INPUT_SIZE = 224;
+
+		var cvs = $("<canvas>").attr({
+			width: INPUT_SIZE,
+			height: INPUT_SIZE
+		}).css({
+			width: INPUT_SIZE + 'px',
+			height: INPUT_SIZE + 'px'
+		}), ctx = cvs[0].getContext("2d");
+		
+
+		var w0 = img.width, h0 = img.height, sx, sy, sw, sh;
+
+		if(w0 > h0) {
+			sx = (w0 - h0)/2;
+			sy = 0;
+			sw = sh = h0;
+		} else {
+			sx = 0;
+			sy = (h0 - w0)/2;
+			sw = sh = w0;
+		}
+
+		ctx.drawImage(img, sx, sy, sw, sh, 0, 0,INPUT_SIZE,INPUT_SIZE);
+
+
+		var imgData=ctx.getImageData(0,0,INPUT_SIZE,INPUT_SIZE);
+		var data = imgData.data, res = [];
+		for (var i=0;i<data.length;i+=4) {
+		  res.push(data[i], data[i+1], data[i+2]);
+		}
+		return res;
+	}
+
+}
+    </script>
+</body>
+</html>
