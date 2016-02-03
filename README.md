@@ -18,9 +18,9 @@ pip install PIL
 
 ## Run The Demo:
 ```
-cd /path/to/the/reposity
+cd /path/to/the/repository
 python app.py
 ```
-and you can check the demo by open the page http://localhost:5000 (chrome recommended)
+and you can check the demo by opening the page [http://localhost:5000](http://localhost:5000) (chrome recommended)
 
 
