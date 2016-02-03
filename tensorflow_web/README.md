@@ -2,6 +2,8 @@
 
 This is a demo  to show how to run a well-trained tensorflow-model as a web service.
 
+![screenshoot](http://tensorfly.cn/images/qqq.gif)
+
 ## Prerequisite:
 
 - install tensorflow. check [here](http://tensorfly.cn/tfdoc/get_started/os_setup.html)
@@ -21,4 +23,4 @@ python app.py
 ```
 and you can check the demo by open the page http://localhost:5000 (chrome recommended)
 
-![screenshoot](http://tensorfly.cn/images/qqq.gif)
+
